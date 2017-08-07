@@ -1,20 +1,15 @@
 package com.jenkov.nioserver;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.List;
 
 /**
  * Created by jjenkov on 16-10-2015.
+ * Modified by nagalun on 07-08-2017.
  */
 public interface IMessageReader {
 
-    public void init(MessageBuffer readMessageBuffer);
+	public void read(Socket socket) throws IOException;
 
-    public void read(Socket socket, ByteBuffer byteBuffer) throws IOException;
-
-    public List<Message> getMessages();
-
-
+	public void clear();
 
 }
