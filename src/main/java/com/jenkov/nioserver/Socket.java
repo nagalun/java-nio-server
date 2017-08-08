@@ -1,6 +1,7 @@
 package com.jenkov.nioserver;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -23,12 +24,22 @@ public class Socket {
 	public boolean endOfStreamReached = false;
 	public boolean awaitingClose = false;
 
+	private final SocketAddress address;
 	public Object metaData = null;
 
 	public Socket(SocketChannel socketChannel, SocketProcessor socketProcessor, IMessageReader msgReader) {
 		this.socketChannel = socketChannel;
 		this.socketProcessor = socketProcessor;
 		this.messageReader = msgReader;
+		SocketAddress addr = null;
+		try {
+			addr = socketChannel.getRemoteAddress();
+		} catch (final IOException e) {
+			/* Why? */
+			e.printStackTrace();
+			deferredClose();
+		}
+		this.address = addr;
 	}
 
 	public final int read(final ByteBuffer byteBuffer) {
@@ -65,10 +76,12 @@ public class Socket {
 			registerWrites(false);
 			return;
 		}
+		
 		MessageWriter.Status s;
 		do {
 			s = messageWriter.write();
 		} while (s == MessageWriter.Status.OK);
+		
 		if (s == MessageWriter.Status.ERROR) {
 			close();
 		}
@@ -78,6 +91,7 @@ public class Socket {
 		if (endOfStreamReached || awaitingClose) {
 			return;
 		}
+		
 		final MappedMemory msg = this.socketProcessor.getMemoryManager().getMemory(arr.length);
 		final ByteBuffer bb = msg.getBuffer();
 		bb.put(arr);
@@ -90,6 +104,7 @@ public class Socket {
 		if (endOfStreamReached || awaitingClose) {
 			return;
 		}
+		
 		registerWrites(true);
 		switch (messageWriter.enqueue(msg)) {
 		case EMPTY:
@@ -134,5 +149,9 @@ public class Socket {
 			closeChannel();
 			socketProcessor.closedSocket(this);
 		}
+	}
+	
+	public final SocketAddress getAddress() {
+		return address;
 	}
 }

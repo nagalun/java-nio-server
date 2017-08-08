@@ -42,6 +42,10 @@ public class MessageWriter {
 
 	/* Returns true if there aren't any more messages to be written */
 	public Status write() {
+		if (this.messageInProgress == null) {
+			return Status.EMPTY;
+		}
+		
 		this.bufferInProgress.position(this.bufferBytesWritten);
 		int bytesWritten = socket.write(this.bufferInProgress);
 		

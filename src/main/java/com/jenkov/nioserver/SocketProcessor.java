@@ -2,6 +2,7 @@ package com.jenkov.nioserver;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.SocketOption;
 import java.net.StandardSocketOptions;
 import java.nio.channels.SelectionKey;
@@ -57,7 +58,7 @@ public class SocketProcessor implements Runnable {
 			return;
 		}
 
-		while (true) {
+		while (serverSocket.isOpen()) {
 			try {
 				if (generalSelector.select() == 0) {
 					continue;
@@ -68,6 +69,21 @@ public class SocketProcessor implements Runnable {
 				e.printStackTrace();
 			}
 		}
+		
+		try {
+			generalSelector.close();
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void stop() {
+		try {
+			serverSocket.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		generalSelector.wakeup();
 	}
 
 	public void executeCycle() throws IOException {
@@ -104,6 +120,8 @@ public class SocketProcessor implements Runnable {
 						continue;
 					}
 				}
+			} catch (final Throwable e) { /* Try to not crash D: */
+				e.printStackTrace();
 			} finally {
 				keyIterator.remove();
 			}
@@ -152,5 +170,14 @@ public class SocketProcessor implements Runnable {
 
 	public MemoryManager getMemoryManager() {
 		return this.memoryManager;
+	}
+	
+	public SocketAddress getAddress() {
+		try {
+			return serverSocket.getLocalAddress();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 }
