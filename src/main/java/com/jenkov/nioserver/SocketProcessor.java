@@ -6,7 +6,6 @@ import java.net.SocketAddress;
 import java.net.SocketOption;
 import java.net.StandardSocketOptions;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
@@ -14,6 +13,9 @@ import java.util.List;
 import java.util.Set;
 
 import com.jenkov.nioserver.memory.MemoryManager;
+
+import me.nagalun.async.ITaskScheduler;
+import me.nagalun.async.MultiSelector;
 
 /**
  * Created by jjenkov on 16-10-2015.
@@ -31,7 +33,7 @@ public class SocketProcessor implements Runnable {
 
 	private final MemoryManager memoryManager = new MemoryManager(1024); /* 1024 * 512 bytes */
 
-	private final Selector generalSelector = Selector.open();
+	private final MultiSelector multiSelector = new MultiSelector();
 
 	private final IEventHandler eventHandler;
 
@@ -52,7 +54,7 @@ public class SocketProcessor implements Runnable {
 	public void run() {
 		try {
 			this.serverSocket.bind(new InetSocketAddress(tcpPort));
-			serverSocket.register(generalSelector, SelectionKey.OP_ACCEPT);
+			serverSocket.register(multiSelector.getSelector(), SelectionKey.OP_ACCEPT);
 		} catch (IOException e) {
 			e.printStackTrace();
 			return;
@@ -60,7 +62,7 @@ public class SocketProcessor implements Runnable {
 
 		while (serverSocket.isOpen()) {
 			try {
-				if (generalSelector.select() == 0) {
+				if (multiSelector.select() == 0) {
 					continue;
 				}
 
@@ -71,7 +73,7 @@ public class SocketProcessor implements Runnable {
 		}
 		
 		try {
-			generalSelector.close();
+			multiSelector.close();
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}
@@ -83,11 +85,11 @@ public class SocketProcessor implements Runnable {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		generalSelector.wakeup();
+		multiSelector.wakeup();
 	}
 
 	public void executeCycle() throws IOException {
-		Set<SelectionKey> selectedKeys = generalSelector.selectedKeys();
+		Set<SelectionKey> selectedKeys = multiSelector.getSelector().selectedKeys();
 		Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
 		while (keyIterator.hasNext()) {
@@ -135,7 +137,7 @@ public class SocketProcessor implements Runnable {
 
 	/* For external calls */
 	public void interestSocket(Socket socket, int ops) {
-		SelectionKey key = socket.socketChannel.keyFor(this.generalSelector);
+		SelectionKey key = socket.socketChannel.keyFor(multiSelector.getSelector());
 		if (key.isValid()) {
 			key.interestOps(ops);
 		}
@@ -157,12 +159,12 @@ public class SocketProcessor implements Runnable {
 
 		//this.socketMap.put(newSocket.socketId, newSocket);
 
-		sc.register(this.generalSelector, SelectionKey.OP_READ, newSocket);
+		sc.register(multiSelector.getSelector(), SelectionKey.OP_READ, newSocket);
 		eventHandler.onSocketOpen(newSocket);
 	}
 
 	public void closedSocket(Socket socket) {
-		SelectionKey key = socket.socketChannel.keyFor(this.generalSelector);
+		SelectionKey key = socket.socketChannel.keyFor(multiSelector.getSelector());
 		//socketMap.remove(socket.socketId);
 		key.attach(null);
 		eventHandler.onSocketClose(socket);
@@ -179,5 +181,9 @@ public class SocketProcessor implements Runnable {
 			e.printStackTrace();
 			return null;
 		}
+	}
+	
+	public ITaskScheduler getTaskScheduler() {
+		return multiSelector;
 	}
 }
