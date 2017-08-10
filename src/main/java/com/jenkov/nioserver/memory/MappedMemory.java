@@ -77,10 +77,7 @@ public class MappedMemory {
 	}
 	
 	public ByteBuffer getBuffer() {
-		if (freed) {
-			throw new java.lang.IllegalArgumentException();
-		}
-		if (hasOwnBuffer()) {
+		if (freed || hasOwnBuffer()) {
 			return this.fallbackBuf;
 		}
 		final ByteBuffer bbuf = this.memoryManager.getMemoryBuffer();
