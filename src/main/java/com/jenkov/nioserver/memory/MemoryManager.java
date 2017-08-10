@@ -79,7 +79,7 @@ public class MemoryManager {
 	 **/
 	private int resizeToFit(int blocks) {
 		/* No small resizes */
-		blocks = blocks <= 128 ? 128 : blocks;
+		blocks = blocks <= 256 ? 256 : blocks;
 		int size = allocMapSize;
 		int freeBlock = allocationMap.previousSetBit(size - 1) + 1;
 		if (freeBlock == 0) {
